@@ -1,8 +1,16 @@
+ARG SOURCE=github
+
 # STEP1: CLONE THE CODE
-FROM alpine:latest as builder_prepare
+FROM alpine:latest as builder_prepare_context
+WORKDIR /home/
+COPY . /home/filestash
+
+FROM alpine:latest as builder_prepare_github
 WORKDIR /home/
 RUN apk add git && \
     git clone --depth 1 https://github.com/mickael-kerjean/filestash
+
+FROM builder_prepare_${SOURCE} as builder_prepare
 
 # STEP2: BUILD THE FRONTEND
 FROM node:18-alpine AS builder_frontend
@@ -29,15 +37,17 @@ RUN apt-get update > /dev/null && \
 FROM debian:stable-slim
 MAINTAINER mickael@kerjean.me
 COPY --from=builder_backend /home/dist/ /app/
+COPY --from=builder_prepare /home/filestash/server/.assets/emacs /assets-emacs
 WORKDIR "/app"
 RUN apt-get update > /dev/null && \
     apt-get install -y --no-install-recommends apt-utils && \
     apt-get install -y curl emacs-nox ffmpeg zip poppler-utils > /dev/null && \
     # org-mode: html export
-    curl https://raw.githubusercontent.com/mickael-kerjean/filestash/master/server/.assets/emacs/htmlize.el > /usr/share/emacs/site-lisp/htmlize.el && \
+    mv /assets-emacs/htmlize.el /usr/share/emacs/site-lisp/htmlize.el && \
     # org-mode: markdown export
-    curl https://raw.githubusercontent.com/mickael-kerjean/filestash/master/server/.assets/emacs/ox-gfm.el > /usr/share/emacs/site-lisp/ox-gfm.el && \
+    mv /assets-emacs/ox-gfm.el /usr/share/emacs/site-lisp/ox-gfm.el && \
     # org-mode: pdf export (with a light latex distribution)
+    rm -rf /assets-emacs && \
     cd && apt-get install -y wget perl > /dev/null && \
     export CTAN_REPO="http://mirror.las.iastate.edu/tex-archive/systems/texlive/tlnet" && \
     curl -sL "https://yihui.name/gh/tinytex/tools/install-unx.sh" | sh && \
