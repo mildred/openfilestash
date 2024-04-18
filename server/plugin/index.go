@@ -4,6 +4,7 @@ import (
 	. "github.com/mickael-kerjean/filestash/server/common"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_authenticate_admin"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_authenticate_htpasswd"
+	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_authenticate_http"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_authenticate_ldap"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_authenticate_openid"
 	_ "github.com/mickael-kerjean/filestash/server/plugin/plg_authenticate_passthrough"
