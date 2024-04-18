@@ -21,7 +21,7 @@ func (this Admin) Setup() Form {
 			{
 				Name:  "type",
 				Type:  "hidden",
-				Value: "passthrough",
+				Value: "http",
 			},
 			{
 				Name:  "strategy",

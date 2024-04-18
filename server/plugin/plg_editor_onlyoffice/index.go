@@ -26,6 +26,7 @@ var (
 	onlyoffice_cache *cache.Cache
 	plugin_enable    func() bool
 	server_url       func() string
+	callback_url     func() string
 	can_download     func() bool
 )
 
@@ -45,7 +46,7 @@ func init() {
 			}
 			f.Name = "enable"
 			f.Type = "enable"
-			f.Target = []string{"onlyoffice_server", "onlyoffice_can_download"}
+			f.Target = []string{"onlyoffice_server", "onlyoffice_can_download", "onlyoffice_callback_url"}
 			f.Description = "Enable/Disable the office suite to manage word, excel and powerpoint documents. This setting requires a restart to comes into effect"
 			f.Default = false
 			if u := os.Getenv("ONLYOFFICE_URL"); u != "" {
@@ -84,6 +85,24 @@ func init() {
 			f.Default = true
 			return f
 		}).Bool()
+	}
+	callback_url = func() string {
+		return Config.Get("features.office.onlyoffice_callback_url").Schema(func(f *FormElement) *FormElement {
+			if f == nil {
+				f = &FormElement{}
+			}
+			f.Id = "onlyoffice_callback_url"
+			f.Name = "onlyoffice_callback_url"
+			f.Type = "text"
+			f.Description = "URL where OnlyOffice cann call back filestash"
+			f.Default = ""
+			f.Placeholder = "Eg: http://filestash:80"
+			if u := os.Getenv("ONLYOFFICE_CALLBACK_URL"); u != "" {
+				f.Default = u
+				f.Placeholder = fmt.Sprintf("Default: '%s'", u)
+			}
+			return f
+		}).String()
 	}
 
 	Hooks.Register.Onload(func() {
@@ -187,7 +206,6 @@ func IframeContentHandler(ctx *App, res http.ResponseWriter, req *http.Request) 
 		filename                string // filename of the document
 		oodsMode                string // edit mode
 		oodsDevice              string // mobile, desktop of embedded
-		localip                 string
 	)
 	query := req.URL.Query()
 	path, err := ctrl.PathBuilder(ctx, query.Get("path"))
@@ -241,7 +259,8 @@ func IframeContentHandler(ctx *App, res http.ResponseWriter, req *http.Request) 
 		username = "Anonymous"
 		userId = RandomString(10)
 	}
-	localip = func() string { // https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go#23558495
+	filestashServerLocation = callback_url()
+	localip := func() string { // https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go#23558495
 		addrs, err := net.InterfaceAddrs()
 		if err != nil {
 			return ""
@@ -271,18 +290,20 @@ func IframeContentHandler(ctx *App, res http.ResponseWriter, req *http.Request) 
 		localAddr := conn.LocalAddr().(*net.UDPAddr)
 
 		return localAddr.IP.String()
-	}()
-	filestashServerLocation = fmt.Sprintf(
-		"%s://%s:%d",
-		func() string { // proto
-			if req.TLS == nil {
-				return "http"
-			}
-			return "https"
-		}(),
-		localip,
-		Config.Get("general.port").Int(),
-	)
+	}
+	if filestashServerLocation == "" {
+		filestashServerLocation = fmt.Sprintf(
+			"%s://%s:%d",
+			func() string { // proto
+				if req.TLS == nil {
+					return "http"
+				}
+				return "https"
+			}(),
+			localip(),
+			Config.Get("general.port").Int(),
+		)
+	}
 	contentType = func(p string) string {
 		var (
 			word       string = "text"
