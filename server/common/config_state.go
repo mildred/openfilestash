@@ -33,6 +33,9 @@ func init() {
 	config_path = func() string {
 		return GetAbsolutePath(CONFIG_PATH, "config.json")
 	}
+	if os.Getenv("CONFIG_ENCRYPT") == "0" {
+		configKeysToEncrypt = []string{}
+	}
 }
 
 func LoadConfig() ([]byte, error) {
